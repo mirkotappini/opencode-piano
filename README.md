@@ -62,9 +62,9 @@ host).
 
 | Marker | Meaning in the panel |
 | ------ | -------------------- |
-| `- [ ]` | pending (`·`) |
-| `- [~]` | in progress (`▸`, highlighted) |
-| `- [x]` | done (`✓`, counted only) |
+| `- [ ]` | pending (`·`, light blue) |
+| `- [~]` | in progress, or the next pending step (`▸`, amber) |
+| `- [x]` | done (`✓`, green) |
 | `- [!]` | blocked (`!`) |
 
 The counter is `done/total`. Markdown emphasis (`**bold**`, backticks) is stripped

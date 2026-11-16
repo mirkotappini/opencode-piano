@@ -130,7 +130,7 @@ function color(api: any, status: Status) {
   if (status === "active") return text?.feedback?.warning?.base ?? text?.base
   if (status === "blocked") return text?.feedback?.error?.base ?? text?.base
   if (status === "done") return text?.feedback?.success?.base ?? text?.muted
-  return text?.muted ?? text?.base
+  return text?.feedback?.info?.base ?? text?.muted ?? text?.base
 }
 
 // Repo di un percorso citato in un tool: si guarda la directory che lo contiene
