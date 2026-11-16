@@ -378,8 +378,8 @@ export default {
               when={expanded()}
               fallback={
                 <For each={steps()}>
-                  {(step) => (
-                    <text fg={color(api, step.status)}>
+                  {(step, index) => (
+                    <text fg={index() === 0 ? color(api, "active") : color(api, step.status)}>
                       {`${GLYPH[step.status]} ${clip(plain(step.text), 32)}`}
                     </text>
                   )}
@@ -388,8 +388,8 @@ export default {
             >
               <scrollbox height={Math.min(Math.max(steps().length, 1), 16)} flexDirection="column">
                 <For each={steps()}>
-                  {(step) => (
-                    <text fg={color(api, step.status)}>
+                  {(step, index) => (
+                    <text fg={index() === 0 ? color(api, "active") : color(api, step.status)}>
                       {`${GLYPH[step.status]} ${clip(plain(step.text), 32)}`}
                     </text>
                   )}
