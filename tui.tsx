@@ -351,11 +351,20 @@ export default {
       const steps = createMemo(() => {
         const value = plan()
         if (!value) return []
-        // Compresso: solo i 3 passi più vicini. Espanso: tutti, fatti compresi,
-        // così il numero di righe corrisponde al contatore done/total.
+        // Compresso: i 3 passi più vicini, col passo in corso in cima (il file
+        // può avere da fare prima di quello su cui si sta lavorando).
         if (expanded()) return value.steps
-        return value.steps.filter((step) => step.status !== "done").slice(0, 3)
+        const pending = value.steps.filter((step) => step.status !== "done")
+        const current = value.current
+        if (!current) return pending.slice(0, 3)
+        const first = pending[0]
+        const ordered =
+          first && first.line !== current.line ? [current, ...pending.filter((step) => step.line !== current.line)] : pending
+        return ordered.slice(0, 3)
       })
+      const currentLine = createMemo(() => plan()?.current?.line)
+      const glyph = (step: { line: number; status: Status }) =>
+        step.line === currentLine() ? "▸" : GLYPH[step.status]
       const hidden = createMemo(() => {
         const value = plan()
         if (!value || expanded()) return 0
@@ -379,8 +388,8 @@ export default {
               fallback={
                 <For each={steps()}>
                   {(step, index) => (
-                    <text fg={index() === 0 ? color(api, "active") : color(api, step.status)}>
-                      {`${GLYPH[step.status]} ${clip(plain(step.text), 32)}`}
+                    <text fg={step.line === currentLine() ? color(api, "active") : color(api, step.status)}>
+                      {`${glyph(step)} ${clip(plain(step.text), 32)}`}
                     </text>
                   )}
                 </For>
@@ -388,9 +397,9 @@ export default {
             >
               <scrollbox height={Math.min(Math.max(steps().length, 1), 16)} flexDirection="column">
                 <For each={steps()}>
-                  {(step, index) => (
-                    <text fg={index() === 0 ? color(api, "active") : color(api, step.status)}>
-                      {`${GLYPH[step.status]} ${clip(plain(step.text), 32)}`}
+                  {(step) => (
+                    <text fg={step.line === currentLine() ? color(api, "active") : color(api, step.status)}>
+                      {`${glyph(step)} ${clip(plain(step.text), 32)}`}
                     </text>
                   )}
                 </For>
