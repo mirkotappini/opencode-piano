@@ -11,7 +11,10 @@ you are looking at: what is done, what is in progress, what comes next.
   `/plan expand` opens the full list (done steps included) in a scrollable box.
 - **Panel**: `/plan` opens the numbered list, with the full path of the plan file.
 - **Commands**: `/plan done N`, `/plan start N`, `/plan add text`,
-  `/plan expand`, `/plan collapse`, `/plan use <repo>`, `/plan off`.
+  `/plan expand`, `/plan collapse`, `/plan fatti`, `/plan use <repo>`, `/plan off`.
+- **Done steps are grouped**: expanded shows the open steps first, then a `▶ ✓ Fatto (N)`
+  toggle; a plan with nothing open keeps a `✓ … N/N · tutto fatto` line instead of
+  disappearing.
 
 Nothing is shown for a session that has no plan: the panel never borrows the plan
 of another session.

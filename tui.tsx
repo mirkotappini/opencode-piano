@@ -165,6 +165,7 @@ export default {
     const [refresh, setRefresh] = createSignal(0)
     const [links, setLinks] = api.storage.store("links", { initial: {} as Record<string, string> })
     const [expanded, setExpanded] = createSignal(false)
+    const [showDone, setShowDone] = createSignal(false)
     const timer = setInterval(() => setRefresh((value) => value + 1), POLL_MS)
     const activity = new Map<string, { count: number; root?: string }>()
 
@@ -248,6 +249,11 @@ export default {
         setExpanded(open)
         return api.ui.toast.show({ message: `Piano: ${open ? "espanso" : "compresso"}`, variant: "success" })
       }
+      if (verb === "fatti" || verb === "done-list") {
+        setShowDone(!showDone())
+        setExpanded(true)
+        return
+      }
       if (verb === "off" || verb === "scollega") {
         if (sessionID) setLinks((draft: Record<string, string>) => void delete draft[sessionID])
         return api.ui.toast.show({ message: "Piano: sessione scollegata", variant: "success" })
@@ -298,67 +304,71 @@ export default {
         refresh()
         return read(props.sessionID)
       })
-      const steps = createMemo(() => {
+      const pending = createMemo(() => plan()?.steps.filter((step) => step.status !== "done") ?? [])
+      const done = createMemo(() => plan()?.steps.filter((step) => step.status === "done") ?? [])
+      const collapsed = createMemo(() => {
         const value = plan()
         if (!value) return []
-        // Compresso: i 3 passi più vicini, col passo in corso in cima (il file
-        // può avere da fare prima di quello su cui si sta lavorando).
-        if (expanded()) return value.steps
-        const pending = value.steps.filter((step) => step.status !== "done")
         const current = value.current
-        if (!current) return pending.slice(0, 3)
-        const first = pending[0]
+        if (!current) return pending().slice(0, 3)
+        const first = pending()[0]
         const ordered =
-          first && first.line !== current.line ? [current, ...pending.filter((step) => step.line !== current.line)] : pending
+          first && first.line !== current.line
+            ? [current, ...pending().filter((step) => step.line !== current.line)]
+            : pending()
         return ordered.slice(0, 3)
       })
       const currentLine = createMemo(() => plan()?.current?.line)
       const glyph = (step: { line: number; status: Status }) =>
         step.line === currentLine() ? "▸" : GLYPH[step.status]
-      const hidden = createMemo(() => {
-        const value = plan()
-        if (!value || expanded()) return 0
-        return Math.max(0, value.remaining - steps().length)
-      })
+      const row = (step: Step, highlighted = true) => (
+        <text fg={highlighted && step.line === currentLine() ? color(api, "active") : color(api, step.status)}>
+          {`${glyph(step)} ${clip(plain(step.text), 32)}`}
+        </text>
+      )
       const header = createMemo(() => {
         const value = plan()
         if (!value) return ""
         const name = clip(plain(value.title ?? basename(value.root)), 20)
-        return `${expanded() ? "▼" : "▶"} PIANO · ${name}  ${value.done}/${value.total}`
+        const mark = value.remaining === 0 ? "✓" : expanded() ? "▼" : "▶"
+        return `${mark} PIANO · ${name}  ${value.done}/${value.total}`
       })
       const toggle = () => setExpanded(!expanded())
+      const toggleDone = () => setShowDone(!showDone())
+      const boxHeight = createMemo(
+        () => Math.min(Math.max(pending().length + (showDone() ? done().length : 0) + 1, 1), 16),
+      )
       return (
-        <Show when={plan() && plan()!.remaining > 0}>
+        <Show when={plan() && plan()!.total > 0}>
           <box flexDirection="column" gap={0}>
             <box flexDirection="row" onMouseDown={toggle}>
               <text fg={api.theme?.text?.muted}>{header()}</text>
             </box>
-            <Show
-              when={expanded()}
-              fallback={
-                <For each={steps()}>
-                  {(step, index) => (
-                    <text fg={step.line === currentLine() ? color(api, "active") : color(api, step.status)}>
-                      {`${glyph(step)} ${clip(plain(step.text), 32)}`}
-                    </text>
-                  )}
-                </For>
-              }
-            >
-              <scrollbox height={Math.min(Math.max(steps().length, 1), 16)} flexDirection="column">
-                <For each={steps()}>
-                  {(step) => (
-                    <text fg={step.line === currentLine() ? color(api, "active") : color(api, step.status)}>
-                      {`${glyph(step)} ${clip(plain(step.text), 32)}`}
-                    </text>
-                  )}
-                </For>
-              </scrollbox>
+            <Show when={!expanded()}>
+              <For each={collapsed()}>{(step) => row(step)}</For>
+              <Show when={plan()!.remaining > collapsed().length}>
+                <box flexDirection="row" onMouseDown={toggle}>
+                  <text fg={api.theme?.text?.muted}>{`  +${plan()!.remaining - collapsed().length} altri · /plan expand`}</text>
+                </box>
+              </Show>
+              <Show when={plan()!.remaining === 0}>
+                <text fg={api.theme?.text?.muted}>{"  tutto fatto · /plan add per il prossimo passo"}</text>
+              </Show>
             </Show>
-            <Show when={hidden() > 0}>
-              <box flexDirection="row" onMouseDown={toggle}>
-                <text fg={api.theme?.text?.muted}>{`  +${hidden()} altri · /plan expand`}</text>
-              </box>
+            <Show when={expanded()}>
+              <scrollbox height={boxHeight()} flexDirection="column">
+                <For each={pending()}>{(step) => row(step)}</For>
+                <Show when={done().length > 0}>
+                  <box flexDirection="row" onMouseDown={toggleDone}>
+                    <text fg={api.theme?.text?.muted}>
+                      {`${showDone() ? "▼" : "▶"} ✓ Fatto (${done().length})`}
+                    </text>
+                  </box>
+                  <Show when={showDone()}>
+                    <For each={done()}>{(step) => row(step)}</For>
+                  </Show>
+                </Show>
+              </scrollbox>
             </Show>
           </box>
         </Show>
