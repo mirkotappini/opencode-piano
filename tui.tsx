@@ -357,7 +357,6 @@ export default {
             </Show>
             <Show when={expanded()}>
               <scrollbox height={boxHeight()} flexDirection="column">
-                <For each={pending()}>{(step) => row(step)}</For>
                 <Show when={done().length > 0}>
                   <box flexDirection="row" onMouseDown={toggleDone}>
                     <text fg={api.theme?.text?.muted}>
@@ -368,6 +367,7 @@ export default {
                     <For each={done()}>{(step) => row(step)}</For>
                   </Show>
                 </Show>
+                <For each={pending()}>{(step) => row(step)}</For>
               </scrollbox>
             </Show>
           </box>
