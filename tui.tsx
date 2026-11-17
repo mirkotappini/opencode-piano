@@ -15,8 +15,6 @@ import { basename, dirname, isAbsolute, join } from "node:path"
 const PLAN_REL = join(".agents", "plan.md")
 const POLL_MS = 1500
 const SCAN_MESSAGES = 120
-const MIN_EDITS = 2
-const MUTATORS = new Set(["edit", "write", "patch", "multiedit", "apply_patch", "str_replace"])
 
 type Status = "pending" | "active" | "done" | "blocked"
 
@@ -149,16 +147,6 @@ function color(api: any, status: Status) {
   return text?.feedback?.info?.base ?? text?.muted ?? text?.base
 }
 
-// Repo di un percorso citato in un tool: si guarda la directory che lo contiene
-// (per un file) o la directory stessa.
-function repoOfPath(value: string, base?: string): string | undefined {
-  if (!value || value.length > 400 || value.includes("\n")) return undefined
-  if (!value.includes("/") && !value.includes("\\")) return undefined
-  const absolute = isAbsolute(value) ? value : base && isAbsolute(base) ? join(base, value) : undefined
-  if (!absolute) return undefined
-  return planRoot(dirname(absolute)) ?? planRoot(absolute)
-}
-
 function available(root: string): string[] {
   const out: string[] = []
   try {
@@ -193,66 +181,12 @@ export default {
       return undefined
     }
 
-    // Il segnale vero: quali file questa sessione ha *modificato*. Non le
-    // letture, non i comandi shell (contengono percorsi ovunque): una scrittura
-    // è la prova che il repo è quello su cui si sta lavorando.
-    function activityRoot(sessionID: string | undefined, base?: string): string | undefined {
-      if (!sessionID) return undefined
-      let messages: any[] = []
-      try {
-        messages = api.data.session.message.list(sessionID) ?? []
-      } catch {
-        return undefined
-      }
-      const count = messages.length
-      const cached = activity.get(sessionID)
-      if (cached && cached.count === count) return cached.root
-      const votes = new Map<string, number>()
-      let last: string | undefined
-      for (const message of messages.slice(-SCAN_MESSAGES)) {
-        if (message?.type !== "assistant") continue
-        for (const part of message.content ?? []) {
-          if (part?.type !== "tool") continue
-          if (!MUTATORS.has(String(part.name ?? "").toLowerCase())) continue
-          const input = part.state?.input
-          if (!input || typeof input !== "object") continue
-          const target = input.filePath ?? input.file_path ?? input.path ?? input.file
-          if (typeof target !== "string") continue
-          const root = repoOfPath(target, base)
-          if (root) votes.set(root, (votes.get(root) ?? 0) + 1)
-          last = root
-        }
-      }
-      // Il repo "della sessione" è quello in cui è avvenuta l'ultima scrittura,
-      // non quello con più citazioni: è dove si sta lavorando adesso.
-      const root = last && (votes.get(last) ?? 0) >= MIN_EDITS ? last : undefined
-      activity.set(sessionID, { count, root })
-      return root
-    }
-
-    function focusedSession(): string | undefined {
-      try {
-        const route = api.ui.router.current()
-        if (route?.type === "session") return route.sessionID
-      } catch {}
-      return undefined
-    }
-
     function resolveRoot(sessionID?: string): string | undefined {
-      const directory = directoryOf(sessionID)
       const linked = sessionID ? links[sessionID] : undefined
       if (linked && existsSync(planPath(linked))) return linked
-      // Solo la sessione in primo piano ha i messaggi caricati: è l'unica di cui
-      // possiamo dedurre il repo. Il risultato si memorizza, così la lista delle
-      // tab mostra i piani anche quando non sono più in focus.
-      if (sessionID && sessionID === focusedSession()) {
-        const active = activityRoot(sessionID, directory)
-        if (active && existsSync(planPath(active))) {
-          if (links[sessionID] !== active) setLinks((draft: Record<string, string>) => void (draft[sessionID] = active!))
-          return active
-        }
-      }
-      const root = planRoot(directory)
+      // Nessuna euristica: il piano è quello della cartella della sessione.
+      // Se la sessione non è dentro un progetto, non c'è piano da mostrare.
+      const root = planRoot(directoryOf(sessionID))
       if (root && existsSync(planPath(root))) return root
       return undefined
     }

@@ -76,14 +76,14 @@ the numbers).
 
 ## How a session gets its plan
 
-In order, first match wins:
+Only two sources, both deterministic:
 
 1. an explicit link for that session (`/plan use <repo>`, persisted);
-2. the repo where that session's most recent file writes happened (at least two
-   writes, only evaluated for the focused session);
-3. the git repository containing the session directory.
+2. the project root that contains the session's working directory.
 
-Otherwise the sidebar stays empty. Links are stored in the plugin's own state
+There is no guessing from "recently edited files" or "last repo touched": those
+heuristics link a session to work that belongs to another conversation. Otherwise the
+sidebar stays empty. Links are stored in the plugin's own state
 (`plugin.piano.links.json`, managed by OpenCode), one entry per session id, so a
 plan never leaks into an unrelated conversation. `/plan off` clears the link.
 
