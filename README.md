@@ -42,7 +42,9 @@ host).
 
 ## The plan file
 
-`<git root>/.agents/plan.md`, a plain markdown checklist:
+`<project root>/.agents/plan.md`, a plain markdown checklist. The root is the git
+repository when there is one, otherwise the nearest directory that already contains
+`.agents/plan.md` (a game design folder, a document set):
 
 ```md
 # Piano — OrcaPad (Android + iOS)

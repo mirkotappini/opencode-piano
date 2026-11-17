@@ -94,6 +94,22 @@ function planPath(root: string) {
   return join(root, PLAN_REL)
 }
 
+// Radice del piano: la radice git, oppure la prima cartella che contiene già un
+// .agents/plan.md (progetti non ancora sotto git: un gioco, un documento).
+function planRoot(directory?: string): string | undefined {
+  if (!directory) return undefined
+  const root = gitRoot(directory)
+  if (root) return root
+  let current = directory
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (existsSync(join(current, PLAN_REL))) return current
+    const parent = dirname(current)
+    if (parent === current) return undefined
+    current = parent
+  }
+  return undefined
+}
+
 function modified(file: string) {
   try {
     return statSync(file).mtimeMs
@@ -140,7 +156,7 @@ function repoOfPath(value: string, base?: string): string | undefined {
   if (!value.includes("/") && !value.includes("\\")) return undefined
   const absolute = isAbsolute(value) ? value : base && isAbsolute(base) ? join(base, value) : undefined
   if (!absolute) return undefined
-  return gitRoot(dirname(absolute)) ?? gitRoot(absolute)
+  return planRoot(dirname(absolute)) ?? planRoot(absolute)
 }
 
 function available(root: string): string[] {
@@ -236,7 +252,7 @@ export default {
           return active
         }
       }
-      const root = gitRoot(directory)
+      const root = planRoot(directory)
       if (root && existsSync(planPath(root))) return root
       return undefined
     }
